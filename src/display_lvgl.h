@@ -200,6 +200,18 @@ void touch_init() {
   Wire.setClock(100000);  // 100kHz I2C - slower for reliability
   delay(200);  // Wait for I2C to stabilize
   
+  Serial.println("\n===== I2C SCAN START =====");
+  int devicesFound = 0;
+  for (uint8_t addr = 1; addr < 127; addr++) {
+    Wire.beginTransmission(addr);
+    if (Wire.endTransmission() == 0) {
+      Serial.printf("  ✓ I2C device found at 0x%02X\n", addr);
+      devicesFound++;
+    }
+  }
+  Serial.printf("I2C scan complete: %d device(s) found\n", devicesFound);
+  Serial.println("===== I2C SCAN END =======\n");
+  
   // Try multiple times to find TCA9554 I/O Expander
   bool tca_found = false;
   for (int attempt = 0; attempt < 5; attempt++) {
@@ -226,9 +238,9 @@ void touch_init() {
     
     // Reset touch controller via EXIO1 - proper reset sequence
     tca9554_digital_write(EXIO_TOUCH_RST, LOW);
-    delay(50);  // Hold reset longer
+    delay(100);  // Hold reset longer for reliable init
     tca9554_digital_write(EXIO_TOUCH_RST, HIGH);
-    delay(300);  // Wait longer for touch controller to initialize
+    delay(500);  // Wait LONGER for touch controller to fully initialize
     
     // Try multiple times to find touch controller
     bool touch_found = false;
@@ -244,37 +256,66 @@ void touch_init() {
     
     if (touch_found) {
       Serial.println("FT3168 Touch controller found");
-      touch_available = true;
       
       // Read chip ID for debugging
       Wire.beginTransmission(TOUCH_I2C_ADDR);
-      Wire.write(0xA0);  // Device ID register
+      Wire.write(0xA3);  // Chip ID register (correct address)
       Wire.endTransmission(false);
-      Wire.requestFrom((uint8_t)TOUCH_I2C_ADDR, (uint8_t)1);
-      if (Wire.available()) {
+      uint8_t bytesRead = Wire.requestFrom((uint8_t)TOUCH_I2C_ADDR, (uint8_t)1);
+      if (bytesRead > 0) {
         uint8_t chipId = Wire.read();
         Serial.printf("FT3168 Chip ID: 0x%02X\n", chipId);
       }
       
-      // Configure FT3168: Set to interrupt trigger mode (pulse on touch)
+      // Configure FT3168 properly
+      delay(50);
+      
+      // 1. Set to normal operating mode
       Wire.beginTransmission(TOUCH_I2C_ADDR);
-      Wire.write(0xA4);  // Interrupt mode register
-      Wire.write(0x01);  // Trigger mode (pulse low on touch)
+      Wire.write(0x00);  // Device mode register
+      Wire.write(0x00);  // Normal operating mode
+      if (Wire.endTransmission() != 0) {
+        Serial.println("Failed to set device mode");
+      }
+      delay(10);
+      
+      // 2. Set touch threshold
+      Wire.beginTransmission(TOUCH_I2C_ADDR);
+      Wire.write(0x80);  // Threshold register
+      Wire.write(0x40);  // Threshold value (64)
       Wire.endTransmission();
+      delay(10);
+      
+      // 3. Set interrupt mode to polling (disable interrupt)
+      Wire.beginTransmission(TOUCH_I2C_ADDR);
+      Wire.write(0xA4);  // Interrupt mode register  
+      Wire.write(0x00);  // Polling mode (we poll, not use interrupts)
+      Wire.endTransmission();
+      delay(10);
+      
+      // Verify touch is responding
+      Wire.beginTransmission(TOUCH_I2C_ADDR);
+      Wire.write(0x00);  // Read mode register
+      Wire.endTransmission(false);
+      if (Wire.requestFrom((uint8_t)TOUCH_I2C_ADDR, (uint8_t)1) > 0) {
+        uint8_t mode = Wire.read();
+        Serial.printf("FT3168 Mode: 0x%02X\n", mode);
+        touch_available = true;
+      } else {
+        Serial.println("FT3168 not responding after init");
+        touch_available = false;
+      }
       
     } else {
       Serial.println("FT3168 Touch controller NOT found after 5 attempts");
+      touch_available = false;
     }
   } else {
     Serial.println("TCA9554 I/O Expander NOT found - touch disabled");
+    touch_available = false;
   }
   
-  // Configure touch interrupt pin
-  if (TOUCH_INT >= 0 && touch_available) {
-    pinMode(TOUCH_INT, INPUT_PULLUP);
-    attachInterrupt(digitalPinToInterrupt(TOUCH_INT), touch_isr, FALLING);
-    Serial.printf("Touch interrupt configured on GPIO %d\n", TOUCH_INT);
-  }
+  Serial.printf("Touch initialization complete - available: %s\n", touch_available ? "YES" : "NO");
 }
 
 bool touch_touched() {
@@ -283,51 +324,89 @@ bool touch_touched() {
     return false;
   }
   
-  // After 5 errors (ca. 1 minute), disable touch to prevent bus hanging
-  if (touch_error_count >= 5) {
-    static bool error_logged = false;
-    if (!error_logged) {
-      Serial.println("Touch disabled due to I2C errors (controller not responding)");
-      error_logged = true;
+  static unsigned long last_error_log = 0;
+  static unsigned long last_successful_read = millis();
+  
+  // If we haven't had a successful read in 5 seconds, assume touch may be sleeping
+  if (millis() - last_successful_read > 5000) {
+    // Wake up sequence: dummy read
+    Wire.requestFrom((uint8_t)TOUCH_I2C_ADDR, (uint8_t)1);
+    if (Wire.available()) {
+      Wire.read();  // Discard wake-up byte
     }
-    touch_available = false;
-    return false;
+    delayMicroseconds(500);
   }
   
-  // Read touch data - poll mode for reliability
-  // Read FT3168 touch data starting from register 0x02
+  // Write register address
   Wire.beginTransmission(TOUCH_I2C_ADDR);
-  Wire.write(0x02);  // Start from finger count register
-  int err = Wire.endTransmission(false);
-  if (err != 0) {
+  Wire.write(0x02);  // TD_STATUS register
+  int write_err = Wire.endTransmission();
+  
+  if (write_err != 0) {
+    // Write failed - touch may be sleeping, try wake-up
     touch_error_count++;
-    static unsigned long lastErrorTime = 0;
-    // Only log every 60 seconds (was 5 seconds - way too much spam)
-    if (millis() - lastErrorTime > 60000) {
-      Serial.printf("Touch I2C error: %d (count: %d)\n", err, touch_error_count);
-      lastErrorTime = millis();
+    
+    // Wake-up attempt: Send dummy read
+    Wire.requestFrom((uint8_t)TOUCH_I2C_ADDR, (uint8_t)1);
+    if (Wire.available()) {
+      Wire.read();
     }
+    delay(1);  // Give it a moment
+    
+    // Retry write once after wake-up
+    Wire.beginTransmission(TOUCH_I2C_ADDR);
+    Wire.write(0x02);
+    write_err = Wire.endTransmission();
+    
+    if (write_err != 0) {
+      // Still failing
+      if (millis() - last_error_log > 5000) {
+        Serial.printf("⚠ Touch sleeping, wake failed (errors: %d)\\n", touch_error_count);
+        last_error_log = millis();
+      }
+      if (touch_error_count > 100) {
+        Serial.println("\u26a0 Touch disabled - too many errors");
+        touch_available = false;
+      }
+      return false;
+    }
+  }
+  
+  // Write successful - reset error count
+  if (write_err == 0 && touch_error_count > 0) {
+    touch_error_count = 0;  // Reset on any successful write
+  }
+  
+  // Small delay for FT3168 to prepare data
+  delayMicroseconds(100);
+  
+  // Read data
+  uint8_t bytesRead = Wire.requestFrom((uint8_t)TOUCH_I2C_ADDR, (uint8_t)5);
+  if (bytesRead < 5) {
     return false;
   }
   
-  uint8_t bytesRead = Wire.requestFrom((uint8_t)TOUCH_I2C_ADDR, (uint8_t)5);
-  if (bytesRead >= 5) {
-    touch_error_count = 0;  // Reset error count on success
-    uint8_t touches = Wire.read() & 0x0F;  // 0x02 - Touch points
-    uint8_t xh = Wire.read();     // 0x03 - X high (lower 4 bits) + event flag (upper 2 bits)
-    uint8_t xl = Wire.read();     // 0x04 - X low
-    uint8_t yh = Wire.read();     // 0x05 - Y high (lower 4 bits)
-    uint8_t yl = Wire.read();     // 0x06 - Y low
-    
-    if (touches > 0 && touches < 0x0F) {
-      touch_x = ((xh & 0x0F) << 8) | xl;
-      touch_y = ((yh & 0x0F) << 8) | yl;
-      return true;
-    }
-  } else {
-    touch_error_count++;
+  // Mark successful read
+  last_successful_read = millis();
+  
+  uint8_t td_status = Wire.read();
+  uint8_t touches = td_status & 0x0F;
+  
+  if (touches == 0 || touches > 2) {
+    Wire.read(); Wire.read(); Wire.read(); Wire.read();
+    return false;
   }
-  return false;
+  
+  // Read coordinates
+  uint8_t xh = Wire.read();
+  uint8_t xl = Wire.read();
+  uint8_t yh = Wire.read();
+  uint8_t yl = Wire.read();
+  
+  touch_x = ((xh & 0x0F) << 8) | xl;
+  touch_y = ((yh & 0x0F) << 8) | yl;
+  
+  return true;
 }
 
 #endif // BOARD_WAVESHARE_AMOLED_1_8 touch

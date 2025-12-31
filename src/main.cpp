@@ -81,6 +81,9 @@ void setup() {
   Serial.begin(115200);
   delay(2000);  // Wait for Serial to be ready (CH340 board)
   
+  // Suppress I2C master error logs (FT3168 touch occasionally sleeps)
+  esp_log_level_set("i2c.master", ESP_LOG_NONE);
+  
   Serial.println("\n\n=================================");
   Serial.println("Feeding Break Controller v2.0");
   Serial.println("With Touch Display Support");
@@ -1450,19 +1453,35 @@ void loadTimeConfig() {
   String loadedTz = prefs.getString("timezone", "");
   String loadedNtp = prefs.getString("ntp_server", "");
   
+  prefs.end();
+  
+  // Check if we need to initialize with defaults
+  bool needsSave = false;
+  
   if (loadedTz.length() > 0) {
     tzString = loadedTz;
   } else {
-    tzString = "CET-1CEST,M3.5.0,M10.5.0/3";  // Default
+    tzString = "CET-1CEST,M3.5.0,M10.5.0/3";  // Default for Germany
+    needsSave = true;
   }
   
   if (loadedNtp.length() > 0) {
     ntpServer = loadedNtp;
   } else {
     ntpServer = "pool.ntp.org";  // Default
+    needsSave = true;
   }
   
-  prefs.end();
+  // Save defaults on first boot to avoid error logs next time
+  if (needsSave) {
+    Preferences prefsWrite;
+    prefsWrite.begin("feeding-break", false);
+    prefsWrite.putString("timezone", tzString);
+    prefsWrite.putString("ntp_server", ntpServer);
+    prefsWrite.end();
+    Serial.println("Time config initialized with defaults");
+  }
+  
   Serial.println("Time config loaded: TZ=" + tzString);
 }
 

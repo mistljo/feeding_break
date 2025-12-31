@@ -269,6 +269,16 @@ extern bool shouldIgnoreTouchAfterScreensaver();
 extern void clearScreensaverExitTime();
 
 static void start_btn_cb(lv_event_t *e) {
+  static unsigned long last_click = 0;
+  unsigned long now = millis();
+  
+  // Debouncing: Ignore clicks within 500ms of last click
+  if (now - last_click < 500) {
+    Serial.println("⊘ Button click ignored (debounce)");
+    return;
+  }
+  last_click = now;
+  
   // Ignore touch if we just exited screensaver (prevents accidental activation)
   if (shouldIgnoreTouchAfterScreensaver()) {
     clearScreensaverExitTime();
@@ -562,7 +572,7 @@ static void show_device_section() {
   lv_obj_set_style_pad_all(info_card, 15, 0);
   lv_obj_set_flex_flow(info_card, LV_FLEX_FLOW_COLUMN);
   lv_obj_set_style_pad_row(info_card, row_padding, 0);
-  lv_obj_clear_flag(info_card, LV_OBJ_FLAG_SCROLLABLE);
+  // Scrolling enabled by default - no need to block it
   
   // WiFi Status
   char wifi_text[64];
@@ -630,7 +640,7 @@ static void show_device_section() {
   lv_obj_set_style_radius(tz_card, 15, 0);
   lv_obj_set_style_border_width(tz_card, 0, 0);
   lv_obj_set_style_pad_all(tz_card, 15, 0);
-  lv_obj_clear_flag(tz_card, LV_OBJ_FLAG_SCROLLABLE);
+  // Scrolling enabled by default
   
   // Timezone dropdown
   lv_obj_t *tz_label = lv_label_create(tz_card);
