@@ -279,10 +279,11 @@ void touch_init() {
       }
       delay(10);
       
-      // 2. Set touch threshold
+      // 2. Set touch threshold (lower = more sensitive)
+      // 0x20=very sensitive, 0x40=normal, 0x60=less sensitive
       Wire.beginTransmission(TOUCH_I2C_ADDR);
       Wire.write(0x80);  // Threshold register
-      Wire.write(0x40);  // Threshold value (64)
+      Wire.write(0x20);  // Threshold value (32) - very sensitive
       Wire.endTransmission();
       delay(10);
       
@@ -324,89 +325,78 @@ bool touch_touched() {
     return false;
   }
   
-  static unsigned long last_error_log = 0;
   static unsigned long last_successful_read = millis();
+  static int consecutive_errors = 0;
+  static unsigned long last_debug = 0;
   
-  // If we haven't had a successful read in 5 seconds, assume touch may be sleeping
-  if (millis() - last_successful_read > 5000) {
-    // Wake up sequence: dummy read
-    Wire.requestFrom((uint8_t)TOUCH_I2C_ADDR, (uint8_t)1);
-    if (Wire.available()) {
-      Wire.read();  // Discard wake-up byte
-    }
-    delayMicroseconds(500);
-  }
-  
-  // Write register address
-  Wire.beginTransmission(TOUCH_I2C_ADDR);
-  Wire.write(0x02);  // TD_STATUS register
-  int write_err = Wire.endTransmission();
-  
-  if (write_err != 0) {
-    // Write failed - touch may be sleeping, try wake-up
-    touch_error_count++;
-    
-    // Wake-up attempt: Send dummy read
-    Wire.requestFrom((uint8_t)TOUCH_I2C_ADDR, (uint8_t)1);
-    if (Wire.available()) {
-      Wire.read();
-    }
-    delay(1);  // Give it a moment
-    
-    // Retry write once after wake-up
+  // Try to read touch data - up to 2 attempts
+  for (int attempt = 0; attempt < 2; attempt++) {
+    // Write register address
     Wire.beginTransmission(TOUCH_I2C_ADDR);
-    Wire.write(0x02);
-    write_err = Wire.endTransmission();
+    Wire.write(0x02);  // TD_STATUS register
+    int write_err = Wire.endTransmission();
     
     if (write_err != 0) {
-      // Still failing
-      if (millis() - last_error_log > 5000) {
-        Serial.printf("⚠ Touch sleeping, wake failed (errors: %d)\\n", touch_error_count);
-        last_error_log = millis();
+      // Debug: Log write errors periodically
+      if (millis() - last_debug > 2000) {
+        Serial.printf("Touch: Write err=%d, attempt=%d\\n", write_err, attempt);
+        last_debug = millis();
       }
-      if (touch_error_count > 100) {
-        Serial.println("\u26a0 Touch disabled - too many errors");
-        touch_available = false;
+      // First attempt failed - FT3168 may be sleeping
+      // Wait a bit and retry (the beginTransmission itself helps wake it)
+      delay(2);
+      continue;  // Try again
+    }
+    
+    // Small delay for FT3168 to prepare data
+    delayMicroseconds(100);
+    
+    // Read data
+    uint8_t bytesRead = Wire.requestFrom((uint8_t)TOUCH_I2C_ADDR, (uint8_t)5);
+    if (bytesRead < 5) {
+      if (millis() - last_debug > 2000) {
+        Serial.printf("Touch: Read only %d bytes\\n", bytesRead);
+        last_debug = millis();
       }
+      delay(2);
+      continue;  // Try again
+    }
+    
+    // Mark successful read
+    last_successful_read = millis();
+    consecutive_errors = 0;
+    
+    uint8_t td_status = Wire.read();
+    uint8_t touches = td_status & 0x0F;
+    
+    if (touches == 0 || touches > 2) {
+      // No touch - clear remaining bytes
+      while (Wire.available()) Wire.read();
       return false;
     }
+    
+    // Read coordinates
+    uint8_t xh = Wire.read();
+    uint8_t xl = Wire.read();
+    uint8_t yh = Wire.read();
+    uint8_t yl = Wire.read();
+    
+    touch_x = ((xh & 0x0F) << 8) | xl;
+    touch_y = ((yh & 0x0F) << 8) | yl;
+    
+    return true;
   }
   
-  // Write successful - reset error count
-  if (write_err == 0 && touch_error_count > 0) {
-    touch_error_count = 0;  // Reset on any successful write
+  // Both attempts failed
+  consecutive_errors++;
+  
+  // Only disable after many consecutive errors (not intermittent ones)
+  if (consecutive_errors > 200) {
+    Serial.println("⚠ Touch disabled - too many consecutive errors");
+    touch_available = false;
   }
   
-  // Small delay for FT3168 to prepare data
-  delayMicroseconds(100);
-  
-  // Read data
-  uint8_t bytesRead = Wire.requestFrom((uint8_t)TOUCH_I2C_ADDR, (uint8_t)5);
-  if (bytesRead < 5) {
-    return false;
-  }
-  
-  // Mark successful read
-  last_successful_read = millis();
-  
-  uint8_t td_status = Wire.read();
-  uint8_t touches = td_status & 0x0F;
-  
-  if (touches == 0 || touches > 2) {
-    Wire.read(); Wire.read(); Wire.read(); Wire.read();
-    return false;
-  }
-  
-  // Read coordinates
-  uint8_t xh = Wire.read();
-  uint8_t xl = Wire.read();
-  uint8_t yh = Wire.read();
-  uint8_t yl = Wire.read();
-  
-  touch_x = ((xh & 0x0F) << 8) | xl;
-  touch_y = ((yh & 0x0F) << 8) | yl;
-  
-  return true;
+  return false;
 }
 
 #endif // BOARD_WAVESHARE_AMOLED_1_8 touch
@@ -497,18 +487,28 @@ static void my_disp_flush(lv_disp_drv_t *disp, const lv_area_t *area, lv_color_t
 // LVGL Touch Read Callback
 // ============================================================
 static void my_touchpad_read(lv_indev_drv_t *indev_driver, lv_indev_data_t *data) {
-  // Rate limit touch polling to reduce I2C bus stress (max 10 Hz)
+  // Rate limit touch polling - 30ms for smooth scrolling (33Hz)
   static unsigned long lastTouchPoll = 0;
-  if (millis() - lastTouchPoll < 100) {
-    data->state = LV_INDEV_STATE_REL;
+  static bool lastTouchState = false;
+  static int16_t lastX = 0, lastY = 0;
+  
+  unsigned long now = millis();
+  if (now - lastTouchPoll < 30) {
+    // Return last known state for smooth scrolling
+    data->state = lastTouchState ? LV_INDEV_STATE_PR : LV_INDEV_STATE_REL;
+    data->point.x = lastX;
+    data->point.y = lastY;
     return;
   }
-  lastTouchPoll = millis();
+  lastTouchPoll = now;
   
   if (touch_touched()) {
     data->state = LV_INDEV_STATE_PR;
     data->point.x = touch_x;
     data->point.y = touch_y;
+    lastTouchState = true;
+    lastX = touch_x;
+    lastY = touch_y;
     
     // Reset screensaver timer on touch
     last_touch_time = millis();
@@ -517,9 +517,11 @@ static void my_touchpad_read(lv_indev_drv_t *indev_driver, lv_indev_data_t *data
     if (isScreensaverActive()) {
       hideScreensaver();
       data->state = LV_INDEV_STATE_REL;  // Don't process the touch that woke up
+      lastTouchState = false;
     }
   } else {
     data->state = LV_INDEV_STATE_REL;
+    lastTouchState = false;
   }
 }
 

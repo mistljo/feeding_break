@@ -358,8 +358,8 @@ static void show_control_section() {
   // Start/Stop Button - viel größer für Touch-Bedienung
   lv_obj_t *action_btn = lv_btn_create(menu_content);
   #ifdef BOARD_WAVESHARE_AMOLED_1_8
-  lv_obj_set_size(action_btn, LV_PCT(95), 80);
-  const lv_font_t *btn_font = &lv_font_montserrat_24;
+  lv_obj_set_size(action_btn, LV_PCT(100), 100);  // Volle Breite, 100px hoch
+  const lv_font_t *btn_font = &lv_font_montserrat_28;  // Größere Schrift
   #else
   lv_obj_set_size(action_btn, 200, 60);
   const lv_font_t *btn_font = &lv_font_montserrat_20;
@@ -555,12 +555,12 @@ static void show_device_section() {
   // Info Card
   lv_obj_t *info_card = lv_obj_create(menu_content);
   #ifdef BOARD_WAVESHARE_AMOLED_1_8
-  lv_obj_set_size(info_card, LV_PCT(100), 240);
+  lv_obj_set_size(info_card, LV_PCT(100), LV_SIZE_CONTENT);  // Auto Höhe für Scrolling
   const lv_font_t *info_font = &lv_font_montserrat_18;
   const lv_font_t *detail_font = &lv_font_montserrat_16;
   int row_padding = 10;
   #else
-  lv_obj_set_size(info_card, LV_PCT(100), 200);
+  lv_obj_set_size(info_card, LV_PCT(100), LV_SIZE_CONTENT);  // Auto Höhe
   const lv_font_t *info_font = &lv_font_montserrat_16;
   const lv_font_t *detail_font = &lv_font_montserrat_14;
   int row_padding = 8;
@@ -572,7 +572,7 @@ static void show_device_section() {
   lv_obj_set_style_pad_all(info_card, 15, 0);
   lv_obj_set_flex_flow(info_card, LV_FLEX_FLOW_COLUMN);
   lv_obj_set_style_pad_row(info_card, row_padding, 0);
-  // Scrolling enabled by default - no need to block it
+  lv_obj_clear_flag(info_card, LV_OBJ_FLAG_SCROLLABLE);  // Card selbst nicht scrollbar, parent scrollt
   
   // WiFi Status
   char wifi_text[64];
@@ -640,7 +640,7 @@ static void show_device_section() {
   lv_obj_set_style_radius(tz_card, 15, 0);
   lv_obj_set_style_border_width(tz_card, 0, 0);
   lv_obj_set_style_pad_all(tz_card, 15, 0);
-  // Scrolling enabled by default
+  lv_obj_clear_flag(tz_card, LV_OBJ_FLAG_SCROLLABLE);  // Card nicht scrollbar
   
   // Timezone dropdown
   lv_obj_t *tz_label = lv_label_create(tz_card);
@@ -856,10 +856,10 @@ void createMenuScreen() {
   // ========== Header ==========
   // Größerer Header für kleine Displays
   #ifdef BOARD_WAVESHARE_AMOLED_1_8
-  int header_height = 70;
-  int hamburger_size = 60;
-  int hamburger_line_width = 28;
-  int hamburger_line_height = 4;
+  int header_height = 80;  // Größerer Header
+  int hamburger_size = 70;  // Deutlich größer für Finger
+  int hamburger_line_width = 32;
+  int hamburger_line_height = 5;
   const lv_font_t *title_font = &lv_font_montserrat_20;
   #else
   int header_height = 60;
@@ -906,8 +906,8 @@ void createMenuScreen() {
   // ========== Content Area ==========
   menu_content = lv_obj_create(menu_screen);
   #ifdef BOARD_WAVESHARE_AMOLED_1_8
-  lv_obj_set_size(menu_content, DISPLAY_WIDTH - 20, DISPLAY_HEIGHT - 90);
-  lv_obj_align(menu_content, LV_ALIGN_TOP_MID, 0, 80);
+  lv_obj_set_size(menu_content, DISPLAY_WIDTH - 20, DISPLAY_HEIGHT - 100);  // Platz für größeren Header
+  lv_obj_align(menu_content, LV_ALIGN_TOP_MID, 0, 90);
   #else
   lv_obj_set_size(menu_content, DISPLAY_WIDTH - 20, DISPLAY_HEIGHT - 80);
   lv_obj_align(menu_content, LV_ALIGN_TOP_MID, 0, 70);
@@ -918,6 +918,11 @@ void createMenuScreen() {
   lv_obj_set_flex_flow(menu_content, LV_FLEX_FLOW_COLUMN);
   lv_obj_set_flex_align(menu_content, LV_FLEX_ALIGN_START, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);
   lv_obj_set_style_pad_row(menu_content, 15, 0);
+  // Enable scrolling for content area
+  lv_obj_add_flag(menu_content, LV_OBJ_FLAG_SCROLLABLE);
+  lv_obj_set_scrollbar_mode(menu_content, LV_SCROLLBAR_MODE_ACTIVE);  // Show scrollbar when scrolling
+  lv_obj_set_scroll_dir(menu_content, LV_DIR_VER);
+  lv_obj_set_scroll_snap_y(menu_content, LV_SCROLL_SNAP_NONE);  // No snapping
   
   // ========== Overlay (for closing sidebar) ==========
   menu_overlay = lv_obj_create(menu_screen);
