@@ -4,6 +4,18 @@ Smart feeding mode controller for aquarium systems with touch display support.
 
 > **Note:** This project was generated with assistance from GitHub Copilot (Claude Sonnet 4.5)
 
+## 📸 Screenshots
+
+### Touch Display Interface
+| Main Screen | Menu |
+|-------------|------|
+| ![Main](images/display_main.jpg) | ![Menu](images/display_menu.jpg) |
+
+### Web Interface
+| Dashboard | Settings |
+|-----------|----------|
+| ![Dashboard](images/web_dashboard.jpg) | ![Settings](images/web_settings.png) |
+
 ## 🌟 Features
 
 - **Touch Display Interface** - Beautiful LVGL-based UI
