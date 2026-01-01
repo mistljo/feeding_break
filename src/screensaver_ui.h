@@ -117,9 +117,12 @@ void createScreensaver() {
   lv_meter_scale_t *scale = lv_meter_add_scale(clock_meter);
   lv_meter_set_scale_range(clock_meter, scale, 0, 60, 360, 270);  // Full circle, start at 12
   
-  // Major ticks (hour markers) - 12 ticks, NO auto labels (label_gap=0)
+  // Ticks only, NO auto-generated number labels
   lv_meter_set_scale_ticks(clock_meter, scale, 60, 2, 8, CLOCK_MARKERS);
-  lv_meter_set_scale_major_ticks(clock_meter, scale, 5, 4, 12, CLOCK_MARKERS, 0);  // 0 = no labels
+  lv_meter_set_scale_major_ticks(clock_meter, scale, 5, 4, 12, CLOCK_MARKERS, -10);  // -10 = hide labels inside (not visible)
+  
+  // Hide the auto-generated tick labels by making them transparent
+  lv_obj_set_style_text_opa(clock_meter, LV_OPA_TRANSP, LV_PART_TICKS);
   
   // Add hour labels 1-12 manually
   const char* hour_labels[] = {"12", "1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11"};
