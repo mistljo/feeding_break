@@ -31,7 +31,7 @@ extern void stopConfigPortal();
 #define WIFI_UI_SUCCESS      lv_color_hex(0x00ff87)
 #define WIFI_UI_ERROR        lv_color_hex(0xff6b6b)
 #define WIFI_UI_TEXT         lv_color_hex(0xffffff)
-#define WIFI_UI_TEXT_DIM     lv_color_hex(0x8892b0)
+#define WIFI_UI_TEXT_DIM     lv_color_hex(0xb8c4d8)  // Brighter for readability
 #define WIFI_UI_BUTTON       lv_color_hex(0x533483)
 
 // ============================================================

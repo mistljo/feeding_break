@@ -29,7 +29,7 @@ extern void saveWiFiCredentials(const String &ssid, const String &password);
 #define SETTINGS_ERROR        lv_color_hex(0xff6b6b)
 #define SETTINGS_WARNING      lv_color_hex(0xffa502)
 #define SETTINGS_TEXT         lv_color_hex(0xffffff)
-#define SETTINGS_TEXT_DIM     lv_color_hex(0x8892b0)
+#define SETTINGS_TEXT_DIM     lv_color_hex(0xb8c4d8)  // Brighter for readability
 
 // ============================================================
 // Settings UI State

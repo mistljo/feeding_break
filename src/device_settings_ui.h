@@ -62,7 +62,7 @@ extern String tasmotaGetDevicesJson();
 #define DS_ERROR          lv_color_hex(0xff6b6b)
 #define DS_WARNING        lv_color_hex(0xffa502)
 #define DS_TEXT           lv_color_hex(0xffffff)
-#define DS_TEXT_DIM       lv_color_hex(0x8892b0)
+#define DS_TEXT_DIM       lv_color_hex(0xb8c4d8)  // Brighter for better readability
 #define DS_REDSEA         lv_color_hex(0xe94560)
 #define DS_TUNZE          lv_color_hex(0x00d9ff)
 #define DS_TASMOTA        lv_color_hex(0xffa502)

@@ -39,7 +39,7 @@ int tasmotaGetPulseTime();
 #define MENU_CARD           lv_color_hex(0x1e2a47)
 #define MENU_ACCENT         lv_color_hex(0x2196F3)
 #define MENU_TEXT           lv_color_hex(0xffffff)
-#define MENU_TEXT_DIM       lv_color_hex(0x8892b0)
+#define MENU_TEXT_DIM       lv_color_hex(0xb8c4d8)  // Brighter for better readability
 #define MENU_SUCCESS        lv_color_hex(0x00ff87)
 #define MENU_ERROR          lv_color_hex(0xff6b6b)
 #define MENU_REDSEA         lv_color_hex(0xe94560)

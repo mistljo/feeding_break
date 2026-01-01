@@ -465,7 +465,7 @@ void loadScreensaverSettings() {
 #define UI_COLOR_ACTIVE      lv_color_hex(0x00ff87)  // Green for active
 #define UI_COLOR_INACTIVE    lv_color_hex(0xff6b6b)  // Red for inactive
 #define UI_COLOR_TEXT        lv_color_hex(0xffffff)  // White text
-#define UI_COLOR_TEXT_DIM    lv_color_hex(0x8892b0)  // Dimmed text
+#define UI_COLOR_TEXT_DIM    lv_color_hex(0xb8c4d8)  // Dimmed text (brighter)
 #define UI_COLOR_REDSEA      lv_color_hex(0xe94560)  // Red Sea accent
 #define UI_COLOR_TUNZE       lv_color_hex(0x00d9ff)  // Tunze cyan
 #define UI_COLOR_BUTTON      lv_color_hex(0x533483)  // Button purple
