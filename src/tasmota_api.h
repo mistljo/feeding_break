@@ -50,10 +50,12 @@ static DRAM_ATTR bool tasmotaDebug = false;  // Debug output disabled
 extern Preferences preferences;
 
 // ============================================================
-// Getter Functions for Menu UI
+// Getter/Setter Functions for Menu UI and Device Settings
 // ============================================================
 bool tasmotaIsEnabled() { return tasmotaEnabled; }
 int tasmotaGetPulseTime() { return tasmotaPulseTime; }
+void tasmotaSetEnabled(bool enabled) { tasmotaEnabled = enabled; }
+void tasmotaSetPulseTime(int seconds) { tasmotaPulseTime = seconds; }
 
 // ============================================================
 // Helper: URL Encode
@@ -653,6 +655,69 @@ bool tasmotaUpdateSettings(const String& json) {
   
   tasmotaSaveConfig();
   return true;
+}
+
+// ============================================================
+// Add a single Tasmota device
+// ============================================================
+void tasmotaAddDevice(const String& ip, const String& name, bool enabled, bool turnOn) {
+  // Check if device already exists
+  for (auto& device : tasmotaDevices) {
+    if (device.ip == ip) {
+      // Update existing device
+      device.name = name;
+      device.enabled = enabled;
+      device.turnOn = turnOn;
+      Serial.printf("Updated existing Tasmota device: %s (%s)\n", name.c_str(), ip.c_str());
+      return;
+    }
+  }
+  
+  // Add new device
+  TasmotaDevice device;
+  device.ip = ip;
+  device.name = name;
+  device.enabled = enabled;
+  device.turnOn = turnOn;
+  device.reachable = true;
+  device.powerState = false;
+  tasmotaDevices.push_back(device);
+  Serial.printf("Added new Tasmota device: %s (%s)\n", name.c_str(), ip.c_str());
+}
+
+// ============================================================
+// Remove a Tasmota device by IP
+// ============================================================
+void tasmotaRemoveDevice(const String& ip) {
+  for (auto it = tasmotaDevices.begin(); it != tasmotaDevices.end(); ++it) {
+    if (it->ip == ip) {
+      Serial.printf("Removed Tasmota device: %s (%s)\n", it->name.c_str(), ip.c_str());
+      tasmotaDevices.erase(it);
+      return;
+    }
+  }
+}
+
+// ============================================================
+// Get all devices as JSON
+// ============================================================
+String tasmotaGetDevicesJson() {
+  JsonDocument doc;
+  JsonArray devices = doc.to<JsonArray>();
+  
+  for (const auto& device : tasmotaDevices) {
+    JsonObject d = devices.add<JsonObject>();
+    d["ip"] = device.ip;
+    d["name"] = device.name;
+    d["enabled"] = device.enabled;
+    d["turnOn"] = device.turnOn;
+    d["reachable"] = device.reachable;
+    d["power"] = device.powerState ? "ON" : "OFF";
+  }
+  
+  String result;
+  serializeJson(doc, result);
+  return result;
 }
 
 // ============================================================

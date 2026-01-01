@@ -9,6 +9,7 @@
 #include <DNSServer.h>
 
 // Project headers
+#include "version.h"
 #include "config.h"
 #include "credentials.h"
 #include "redsea_api.h"

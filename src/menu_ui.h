@@ -11,6 +11,12 @@
 #include <WiFi.h>
 #include <Preferences.h>
 #include "board_config.h"
+#include "version.h"
+
+// Include device settings UI for large display
+#ifdef BOARD_ESP32_4848S040
+#include "device_settings_ui.h"
+#endif
 
 // Forward declarations
 extern bool feedingModeActive;
@@ -380,6 +386,13 @@ static void show_control_section() {
 // SECTION: Red Sea
 // ============================================================
 static void show_redsea_section() {
+#ifdef BOARD_ESP32_4848S040
+  // Large display: Show full settings screen
+  showDeviceSettingsScreen();
+  return;
+#endif
+
+  // Small display: Show simple status
   clear_content();
   
   lv_obj_t *title = lv_label_create(menu_content);
@@ -428,6 +441,19 @@ static void show_redsea_section() {
 // SECTION: Tunze
 // ============================================================
 static void show_tunze_section() {
+#ifdef BOARD_ESP32_4848S040
+  // Large display: Show full settings screen (Tunze tab)
+  showDeviceSettingsScreen();
+  // Navigate to Tunze tab after a short delay to let screen load
+  lv_timer_create([](lv_timer_t *timer) {
+    extern void ds_show_service_settings(int service);
+    ds_show_service_settings(1);  // Show Tunze settings
+    lv_timer_del(timer);
+  }, 50, NULL);
+  return;
+#endif
+
+  // Small display: Show simple status
   clear_content();
   
   lv_obj_t *title = lv_label_create(menu_content);
@@ -476,6 +502,19 @@ static void show_tunze_section() {
 // SECTION: Tasmota
 // ============================================================
 static void show_tasmota_section() {
+#ifdef BOARD_ESP32_4848S040
+  // Large display: Show full settings screen (Tasmota tab)
+  showDeviceSettingsScreen();
+  // Navigate to Tasmota tab after a short delay
+  lv_timer_create([](lv_timer_t *timer) {
+    extern void ds_show_service_settings(int service);
+    ds_show_service_settings(2);  // Show Tasmota settings
+    lv_timer_del(timer);
+  }, 50, NULL);
+  return;
+#endif
+
+  // Small display: Show simple status
   clear_content();
   
   lv_obj_t *title = lv_label_create(menu_content);
@@ -622,7 +661,9 @@ static void show_device_section() {
   
   // Version
   lv_obj_t *ver_lbl = lv_label_create(info_card);
-  lv_label_set_text(ver_lbl, "Version: 2.0");
+  char ver_text[64];
+  snprintf(ver_text, sizeof(ver_text), "Version: %s", BUILD_VERSION);
+  lv_label_set_text(ver_lbl, ver_text);
   lv_obj_set_style_text_font(ver_lbl, detail_font, 0);
   lv_obj_set_style_text_color(ver_lbl, MENU_TEXT_DIM, 0);
   

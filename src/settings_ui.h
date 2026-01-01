@@ -10,6 +10,7 @@
 #include <lvgl.h>
 #include <Preferences.h>
 #include "board_config.h"
+#include "version.h"
 
 // ============================================================
 // External References
@@ -318,7 +319,9 @@ void createSettingsScreen() {
   
   // ========== Version Info ==========
   lv_obj_t *version_label = lv_label_create(content);
-  lv_label_set_text(version_label, "Feeding Break v1.0");
+  char version_text[64];
+  snprintf(version_text, sizeof(version_text), "%s %s", APP_NAME, BUILD_VERSION);
+  lv_label_set_text(version_label, version_text);
   lv_obj_set_style_text_font(version_label, &lv_font_montserrat_14, 0);
   lv_obj_set_style_text_color(version_label, SETTINGS_TEXT_DIM, 0);
 }
