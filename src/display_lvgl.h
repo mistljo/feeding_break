@@ -50,13 +50,16 @@ Arduino_DataBus *bus = new Arduino_ESP32SPI(
     GFX_NOT_DEFINED /* DC */, TFT_CS, TFT_SCK, TFT_MOSI, GFX_NOT_DEFINED /* MISO */);
 
 // RGB Panel Bus - exact pin configuration for ESP32-4848S040
+// Timing optimiert gegen horizontales Bildspringen (mehr back_porch für Stabilität)
 Arduino_ESP32RGBPanel *rgbpanel = new Arduino_ESP32RGBPanel(
     TFT_DE, TFT_VSYNC, TFT_HSYNC, TFT_PCLK,
     11 /* R0 */, 12 /* R1 */, 13 /* R2 */, 14 /* R3 */, 0 /* R4 */,
     8 /* G0 */, 20 /* G1 */, 3 /* G2 */, 46 /* G3 */, 9 /* G4 */, 10 /* G5 */,
     4 /* B0 */, 5 /* B1 */, 6 /* B2 */, 7 /* B3 */, 15 /* B4 */,
-    1 /* hsync_polarity */, 10 /* hsync_front_porch */, 8 /* hsync_pulse_width */, 50 /* hsync_back_porch */,
-    1 /* vsync_polarity */, 10 /* vsync_front_porch */, 8 /* vsync_pulse_width */, 20 /* vsync_back_porch */);
+    1 /* hsync_polarity */, 8 /* hsync_front_porch */, 4 /* hsync_pulse_width */, 43 /* hsync_back_porch */,
+    1 /* vsync_polarity */, 8 /* vsync_front_porch */, 4 /* vsync_pulse_width */, 12 /* vsync_back_porch */,
+    1 /* pclk_active_neg - WICHTIG: reduziert Glitches */,
+    14000000 /* prefer_speed - 14MHz für mehr Stabilität */);
 
 // RGB Display with ST7701 type 9 init (specifically for GUITION ESP32-4848S040)
 Arduino_RGB_Display *gfx = new Arduino_RGB_Display(
