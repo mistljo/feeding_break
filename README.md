@@ -53,7 +53,7 @@ Smart feeding mode controller for aquarium systems with touch display support.
 
 1. **Clone the repository**
 ```bash
-git clone https://github.com/YOUR_USERNAME/feeding_break.git
+git clone https://github.com/mistljo/feeding_break.git
 cd feeding_break
 ```
 
