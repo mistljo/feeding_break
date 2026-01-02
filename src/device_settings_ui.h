@@ -245,7 +245,13 @@ static void ds_save_current_settings() {
   if (ds_current_service == 0) {
     // Red Sea
     if (ds_username_ta) redsea_USERNAME = String(lv_textarea_get_text(ds_username_ta));
-    if (ds_password_ta) redsea_PASSWORD = String(lv_textarea_get_text(ds_password_ta));
+    // Only update password if user entered a new one
+    if (ds_password_ta) {
+      String newPass = String(lv_textarea_get_text(ds_password_ta));
+      if (newPass.length() > 0) {
+        redsea_PASSWORD = newPass;
+      }
+    }
     ENABLE_redsea = lv_obj_has_state(ds_enable_switch, LV_STATE_CHECKED);
     saveCredentials();
     Serial.println("Red Sea settings saved from display");
@@ -253,7 +259,13 @@ static void ds_save_current_settings() {
   else if (ds_current_service == 1) {
     // Tunze
     if (ds_username_ta) TUNZE_USERNAME = String(lv_textarea_get_text(ds_username_ta));
-    if (ds_password_ta) TUNZE_PASSWORD = String(lv_textarea_get_text(ds_password_ta));
+    // Only update password if user entered a new one
+    if (ds_password_ta) {
+      String newPass = String(lv_textarea_get_text(ds_password_ta));
+      if (newPass.length() > 0) {
+        TUNZE_PASSWORD = newPass;
+      }
+    }
     ENABLE_TUNZE = lv_obj_has_state(ds_enable_switch, LV_STATE_CHECKED);
     saveCredentials();
     Serial.println("Tunze settings saved from display");
@@ -318,13 +330,19 @@ static void ds_load_devices_task(lv_timer_t *timer) {
   
   String result;
   if (service == 0) {
-    // First save username/password temporarily
+    // Update username, only update password if user entered a new one
     if (ds_username_ta) redsea_USERNAME = String(lv_textarea_get_text(ds_username_ta));
-    if (ds_password_ta) redsea_PASSWORD = String(lv_textarea_get_text(ds_password_ta));
+    if (ds_password_ta) {
+      String newPass = String(lv_textarea_get_text(ds_password_ta));
+      if (newPass.length() > 0) redsea_PASSWORD = newPass;
+    }
     result = redseaGetAquariums();
   } else {
     if (ds_username_ta) TUNZE_USERNAME = String(lv_textarea_get_text(ds_username_ta));
-    if (ds_password_ta) TUNZE_PASSWORD = String(lv_textarea_get_text(ds_password_ta));
+    if (ds_password_ta) {
+      String newPass = String(lv_textarea_get_text(ds_password_ta));
+      if (newPass.length() > 0) TUNZE_PASSWORD = newPass;
+    }
     result = tunzeGetDevices();
   }
   
@@ -519,7 +537,8 @@ void ds_show_service_settings(int service) {
     // Password
     ds_password_ta = ds_create_input(scroll_cont, "Passwort", "Passwort eingeben...", true);
     if (redsea_PASSWORD.length() > 0) {
-      lv_textarea_set_text(ds_password_ta, redsea_PASSWORD.c_str());
+      // Don't show actual password - just indicate one exists
+      lv_textarea_set_placeholder_text(ds_password_ta, "••••••••  (gespeichert)");
     }
     
     // Device Selection Section
@@ -608,7 +627,8 @@ void ds_show_service_settings(int service) {
     // Password
     ds_password_ta = ds_create_input(scroll_cont, "Passwort", "Passwort eingeben...", true);
     if (TUNZE_PASSWORD.length() > 0) {
-      lv_textarea_set_text(ds_password_ta, TUNZE_PASSWORD.c_str());
+      // Don't show actual password - just indicate one exists
+      lv_textarea_set_placeholder_text(ds_password_ta, "••••••••  (gespeichert)");
     }
     
     // Device Selection Section

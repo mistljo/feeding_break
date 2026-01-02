@@ -10,12 +10,14 @@
 // All credentials are:
 // - Loaded from Preferences (Flash)
 // - Configured via Web Interface at runtime
+// - Encrypted with device-unique key
 // - NOT stored in this source code
 //
 // Safe for GitHub: ✓ Yes
 // ============================================================
 
 #include <Preferences.h>
+#include "crypto.h"
 
 // External references to global variables
 extern String redsea_USERNAME;
@@ -38,7 +40,7 @@ void loadCredentials() {
   String savedredseaAquaName = preferences.getString("rs_aqua_name", "");
   
   if (savedredseaUser.length() > 0) redsea_USERNAME = savedredseaUser;
-  if (savedredseaPass.length() > 0) redsea_PASSWORD = savedredseaPass;
+  if (savedredseaPass.length() > 0) redsea_PASSWORD = decryptString(savedredseaPass);
   if (savedredseaAquaId.length() > 0) redsea_AQUARIUM_ID = savedredseaAquaId;
   if (savedredseaAquaName.length() > 0) redsea_AQUARIUM_NAME = savedredseaAquaName;
   
@@ -49,7 +51,7 @@ void loadCredentials() {
   String savedTunzeDevName = preferences.getString("tz_dev_name", "");
   
   if (savedTunzeUser.length() > 0) TUNZE_USERNAME = savedTunzeUser;
-  if (savedTunzePass.length() > 0) TUNZE_PASSWORD = savedTunzePass;
+  if (savedTunzePass.length() > 0) TUNZE_PASSWORD = decryptString(savedTunzePass);
   if (savedTunzeDevId.length() > 0) TUNZE_DEVICE_ID = savedTunzeDevId;
   if (savedTunzeDevName.length() > 0) TUNZE_DEVICE_NAME = savedTunzeDevName;
   
@@ -57,19 +59,19 @@ void loadCredentials() {
   ENABLE_redsea = preferences.getBool("enable_redsea", false);
   ENABLE_TUNZE = preferences.getBool("enable_tunze", false);
   
-  Serial.println("✓ Credentials loaded from flash");
+  Serial.println("✓ Credentials loaded from flash (encrypted)");
 }
 
 void saveCredentials() {
-  // Save Red Sea credentials
+  // Save Red Sea credentials (password encrypted)
   preferences.putString("redsea_user", redsea_USERNAME);
-  preferences.putString("redsea_pass", redsea_PASSWORD);
+  preferences.putString("redsea_pass", encryptString(redsea_PASSWORD));
   preferences.putString("redsea_aqua_id", redsea_AQUARIUM_ID);
   preferences.putString("rs_aqua_name", redsea_AQUARIUM_NAME);
   
-  // Save Tunze credentials
+  // Save Tunze credentials (password encrypted)
   preferences.putString("tunze_user", TUNZE_USERNAME);
-  preferences.putString("tunze_pass", TUNZE_PASSWORD);
+  preferences.putString("tunze_pass", encryptString(TUNZE_PASSWORD));
   preferences.putString("tunze_dev_id", TUNZE_DEVICE_ID);
   preferences.putString("tz_dev_name", TUNZE_DEVICE_NAME);
   
@@ -77,19 +79,20 @@ void saveCredentials() {
   preferences.putBool("enable_redsea", ENABLE_redsea);
   preferences.putBool("enable_tunze", ENABLE_TUNZE);
   
-  Serial.println("✓ Credentials saved to flash");
+  Serial.println("✓ Credentials saved to flash (encrypted)");
 }
 
 bool loadWiFiCredentials(String &ssid, String &password) {
   ssid = preferences.getString("wifi_ssid", "");
-  password = preferences.getString("wifi_pass", "");
+  String encPass = preferences.getString("wifi_pass", "");
+  password = decryptString(encPass);
   return (ssid.length() > 0);
 }
 
 void saveWiFiCredentials(const String &ssid, const String &password) {
   preferences.putString("wifi_ssid", ssid);
-  preferences.putString("wifi_pass", password);
-  Serial.println("✓ WiFi credentials saved");
+  preferences.putString("wifi_pass", encryptString(password));
+  Serial.println("✓ WiFi credentials saved (encrypted)");
 }
 
 #endif // CREDENTIALS_H
